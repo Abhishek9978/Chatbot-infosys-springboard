@@ -1,6 +1,26 @@
 import streamlit as st
 from datetime import datetime, timedelta
 import ollama
+import pytesseract
+from PIL import Image
+import fitz  # PyMuPDF
+import io
+
+# OCR for images
+def ocr_from_image(uploaded_image):
+    image = Image.open(uploaded_image)
+    # Point directly to tesseract.exe
+    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    text = pytesseract.image_to_string(image)
+    return text.strip()
+
+# OCR for PDFs
+def ocr_from_pdf(uploaded_pdf):
+    doc = fitz.open(stream=uploaded_pdf.read(), filetype="pdf")
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    return text.strip()
 
 
 # Page config
@@ -279,24 +299,46 @@ else:
             role = "assistant" if role == "system" else role
         render_message(role, message["content"])
 
-    # Chat input
+    # -------------------- OCR File Upload --------------------
+    uploaded_file = st.file_uploader("Upload an image or PDF", type=["png","jpg","jpeg","pdf"])
+    if uploaded_file:
+        if uploaded_file.type == "application/pdf":
+            extracted_text = ocr_from_pdf(uploaded_file)
+        else:
+            extracted_text = ocr_from_image(uploaded_file)
+        
+        if extracted_text:
+            # Treat extracted text as user message
+            st.session_state.messages.append({"role": "user", "content": extracted_text})
+            render_message("user", extracted_text)
+
+            # Get assistant reply
+            with st.spinner("ai assistant is thinking..."):
+                reply = get_ollama_reply(st.session_state.messages, model="phi3")
+            
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+            render_message("assistant", reply)
+
+            # Save to chat history
+            current_chat_id = st.session_state.current_chat_id
+            if current_chat_id:
+                st.session_state.chat_history[current_chat_id]["messages"] = st.session_state.messages
+                if st.session_state.chat_history[current_chat_id]["title"] == "New Chat":
+                    update_chat_title(current_chat_id, st.session_state.messages)
+
+    # -------------------- Chat Input --------------------
     if prompt := st.chat_input("Message ChatBot"):
-        # Add user message to local session messages
         st.session_state.messages.append({"role": "user", "content": prompt})
         render_message("user", prompt)
 
-        # Get assistant reply (send full conversation history)
         with st.spinner("ai assistant is thinking..."):
             reply = get_ollama_reply(st.session_state.messages, model="phi3")
 
-        # Add assistant reply to local session messages and render
         st.session_state.messages.append({"role": "assistant", "content": reply})
         render_message("assistant", reply)
 
-        # Save to chat history
         current_chat_id = st.session_state.current_chat_id
         if current_chat_id:
             st.session_state.chat_history[current_chat_id]["messages"] = st.session_state.messages
-            # Update title if it's still "New Chat"
             if st.session_state.chat_history[current_chat_id]["title"] == "New Chat":
                 update_chat_title(current_chat_id, st.session_state.messages)
