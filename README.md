@@ -132,7 +132,7 @@ Chatbot-infosys-springboard/
 B.Tech CSE @ SRM Institute of Science and Technology
 📍 Ranchi, Jharkhand
 
-🔗 [LinkedIn](https://www.linkedin.com/in/abhishek9978/)
+🔗 [LinkedIn](https://www.linkedin.com/in/abhishek-kumar-singh-a90476337/)
 💻 [GitHub](https://github.com/Abhishek9978)
 
 ---
