@@ -4,17 +4,14 @@ import ollama
 import pytesseract
 from PIL import Image
 import fitz  # PyMuPDF
-import io
 
-# OCR for images
+# -------------------- OCR FUNCTIONS --------------------
 def ocr_from_image(uploaded_image):
     image = Image.open(uploaded_image)
-    # Point directly to tesseract.exe
     pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     text = pytesseract.image_to_string(image)
     return text.strip()
 
-# OCR for PDFs
 def ocr_from_pdf(uploaded_pdf):
     doc = fitz.open(stream=uploaded_pdf.read(), filetype="pdf")
     text = ""
@@ -22,70 +19,31 @@ def ocr_from_pdf(uploaded_pdf):
         text += page.get_text()
     return text.strip()
 
-
-# Page config
-
+# -------------------- PAGE CONFIG --------------------
 st.set_page_config(
     page_title="ChatBot",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
+# -------------------- CSS --------------------
+st.markdown("""
+<style>
+.chat-container { display: flex; flex-direction: column; gap: 12px; padding: 8px 12px; }
+.msg-row { display: flex; width: 100%; }
+.msg {
+    max-width: 70%; padding: 10px 14px; border-radius: 12px; word-wrap: break-word;
+    white-space: pre-wrap; font-family: "Helvetica", "Arial", sans-serif; line-height: 1.4;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+}
+.msg.user { margin-left: auto; text-align: right; border-radius: 12px 12px 6px 12px; color:white; border: 1px solid #e6e6e6;}
+.msg.assistant { margin-right: auto; text-align: left; border-radius: 12px 12px 12px 6px; border: 1px solid #e6e6e6; }
+.logo-title img { width: 40px; margin-right: 8px; vertical-align: middle; }
+.logo-title { margin-bottom: 18px; }
+</style>
+""", unsafe_allow_html=True)
 
-# CSS for chat bubbles
-
-st.markdown(
-    """
-    <style>
-    /* chat container spacing */
-    .chat-container { display: flex; flex-direction: column; gap: 12px; padding: 8px 12px; }
-
-    /* one row for each message */
-    .msg-row { display: flex; width: 100%; }
-
-    /* bubble base */
-    .msg {
-        max-width: 70%;
-        padding: 10px 14px;
-        border-radius: 12px;
-        word-wrap: break-word;
-        white-space: pre-wrap;
-        font-family: "Helvetica", "Arial", sans-serif;
-        line-height: 1.4;
-        box-shadow: 0 1px 0 rgba(0,0,0,0.04);
-    }
-
-    /* user bubble (right) */
-    .msg.user {
-        margin-left: auto;
-        background: grey;
-        text-align: right;
-        border-radius: 12px 12px 6px 12px;
-    }
-
-    /* assistant bubble (left) */
-    .msg.assistant {
-        margin-right: auto;
-        background: grey;
-        text-align: left;
-        border-radius: 12px 12px 12px 6px;
-        border: 1px solid #e6e6e6;
-    }
-
-    /* optional small timestamp or meta */
-    .msg-meta { font-size: 11px; color: #6b6b6b; margin-bottom: 6px; }
-
-    /* keep the sidebar logo compact */
-    .logo-title img { width: 40px; margin-right: 8px; vertical-align: middle; }
-    .logo-title { margin-bottom: 18px; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-# Helper to render a message using HTML
-
+# -------------------- HELPER FUNCTIONS --------------------
 def render_message(role: str, content: str):
     safe = (
         content.replace("&", "&amp;")
@@ -96,46 +54,18 @@ def render_message(role: str, content: str):
     html = f"""
     <div class="chat-container">
       <div class="msg-row">
-        <div class="msg {role}">
-          {safe}
-        </div>
+        <div class="msg {role}">{safe}</div>
       </div>
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
 
-
-# Ollama reply (full conversation)
-
 def get_ollama_reply(messages, model="phi3"):
-    """
-    Send the entire conversation (messages list) to Ollama and return the assistant reply.
-    """
     try:
-        response = ollama.chat(
-            model=model,
-            messages=messages
-        )
+        response = ollama.chat(model=model, messages=messages)
         return response['message']['content']
     except Exception as e:
-        # Return a readable error message inside the chat so UI doesn't break
         return f"⚠️ Ollama error: {e}"
-
-
-# Chat management functions
-
-def search_chats(query):
-    results = []
-    q = query.strip().lower()
-    for chat_id, chat_data in st.session_state.chat_history.items():
-        if q in chat_data["title"].lower():
-            results.append((chat_id, chat_data))
-            continue
-        for message in chat_data["messages"]:
-            if q in message["content"].lower():
-                results.append((chat_id, chat_data))
-                break
-    return results
 
 def reset_session_state():
     st.session_state.chat_history = {}
@@ -143,19 +73,13 @@ def reset_session_state():
     st.session_state.messages = []
 
 def create_new_chat():
-    # Reuse an empty existing chat if present
     for chat_id, chat_data in st.session_state.chat_history.items():
         if not chat_data["messages"]:
             st.session_state.current_chat_id = chat_id
             st.session_state.messages = []
             return chat_id
-
     chat_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    st.session_state.chat_history[chat_id] = {
-        "title": "New Chat",
-        "messages": [],
-        "created_at": datetime.now()
-    }
+    st.session_state.chat_history[chat_id] = {"title": "New Chat", "messages": [], "created_at": datetime.now()}
     st.session_state.current_chat_id = chat_id
     st.session_state.messages = []
     return chat_id
@@ -174,92 +98,61 @@ def get_categorized_chats():
     yesterday = today - timedelta(days=1)
     week_start = today - timedelta(days=today.weekday())
     last_week_start = week_start - timedelta(days=7)
-
     categories = {"Today": [], "Yesterday": [], "This Week": [], "Last Week": [], "Older": []}
     for chat_id, chat_data in st.session_state.chat_history.items():
         created_at = chat_data.get("created_at", now)
-        if created_at >= today:
-            categories["Today"].append((chat_id, chat_data))
-        elif created_at >= yesterday:
-            categories["Yesterday"].append((chat_id, chat_data))
-        elif created_at >= week_start:
-            categories["This Week"].append((chat_id, chat_data))
-        elif created_at >= last_week_start:
-            categories["Last Week"].append((chat_id, chat_data))
-        else:
-            categories["Older"].append((chat_id, chat_data))
-
-    for category in categories.values():
-        category.sort(key=lambda x: x[1].get('created_at', now), reverse=True)
-
+        if created_at >= today: categories["Today"].append((chat_id, chat_data))
+        elif created_at >= yesterday: categories["Yesterday"].append((chat_id, chat_data))
+        elif created_at >= week_start: categories["This Week"].append((chat_id, chat_data))
+        elif created_at >= last_week_start: categories["Last Week"].append((chat_id, chat_data))
+        else: categories["Older"].append((chat_id, chat_data))
+    for category in categories.values(): category.sort(key=lambda x: x[1].get('created_at', now), reverse=True)
     return categories
 
+# -------------------- INITIALIZE SESSION --------------------
+if 'chat_history' not in st.session_state: reset_session_state(); create_new_chat()
+if 'current_chat_id' not in st.session_state: st.session_state.current_chat_id = None
+if 'messages' not in st.session_state: st.session_state.messages = []
+if 'show_search' not in st.session_state: st.session_state.show_search = False
+if 'search_query' not in st.session_state: st.session_state.search_query = ""
 
-# Initialize session state
-
-if 'chat_history' not in st.session_state:
-    reset_session_state()
-    create_new_chat()
-if 'current_chat_id' not in st.session_state:
-    st.session_state.current_chat_id = None
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
-if 'show_search' not in st.session_state:
-    st.session_state.show_search = False
-if 'search_query' not in st.session_state:
-    st.session_state.search_query = ""
-
-
-# Sidebar: logo, new chat, search, history
-
+# -------------------- SIDEBAR --------------------
 with st.sidebar:
-    st.markdown(
-        """
-        <div class="logo-title">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg">
-            <h2>ChatBot</h2>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown("""
+    <div class="logo-title">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg">
+        <h2>ChatBot</h2>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # New chat & toggle search
-    col1, col2 = st.columns([5, 1])
+    col1, col2 = st.columns([5,1])
     with col1:
         if st.button("+ New chat", use_container_width=True, key="new_chat_btn"):
-            create_new_chat()
-            st.rerun()
+            create_new_chat(); st.rerun()
     with col2:
         if st.button("🔍", key="search_btn", help="Search in chat history"):
-            st.session_state.show_search = True
-            st.rerun()
+            st.session_state.show_search = True; st.rerun()
 
-    # Search interface
     if st.session_state.show_search:
         search_query = st.text_input("Search chats", value=st.session_state.search_query, key="search_input")
         if search_query != st.session_state.search_query:
-            st.session_state.search_query = search_query
-            st.rerun()
-
+            st.session_state.search_query = search_query; st.rerun()
         if search_query:
-            search_results = search_chats(search_query)
-            if search_results:
+            results = []
+            q = search_query.strip().lower()
+            for chat_id, chat_data in st.session_state.chat_history.items():
+                if q in chat_data["title"].lower() or any(q in msg["content"].lower() for msg in chat_data["messages"]):
+                    results.append((chat_id, chat_data))
+            if results:
                 st.markdown("### Search Results")
-                for chat_id, chat_data in search_results:
+                for chat_id, chat_data in results:
                     is_active = chat_id == st.session_state.current_chat_id
                     if st.button(chat_data["title"], key=f"search_{chat_id}", use_container_width=True, disabled=is_active):
-                        st.session_state.current_chat_id = chat_id
-                        st.session_state.messages = chat_data["messages"]
-                        st.rerun()
+                        st.session_state.current_chat_id = chat_id; st.session_state.messages = chat_data["messages"]; st.rerun()
             else:
                 st.info("No results found")
-
         if st.button("Clear Search", key="clear_search"):
-            st.session_state.show_search = False
-            st.session_state.search_query = ""
-            st.rerun()
-
-    # Show categorized chat history when not searching
+            st.session_state.show_search = False; st.session_state.search_query = ""; st.rerun()
     if not st.session_state.show_search:
         categories = get_categorized_chats()
         for category, chats in categories.items():
@@ -272,71 +165,54 @@ with st.sidebar:
                         st.session_state.current_chat_id = chat_id
                         st.session_state.messages = chat_data["messages"]
                         st.rerun()
-
     st.write("---")
-    # Sidebar utilities
     if st.button("Clear Current Chat", key="clear_current"):
         if st.session_state.current_chat_id:
             st.session_state.chat_history[st.session_state.current_chat_id]["messages"] = []
             st.session_state.messages = []
             st.rerun()
-
     if st.button("Clear All History", key="clear_all"):
-        reset_session_state()
-        create_new_chat()
-        st.rerun()
+        reset_session_state(); create_new_chat(); st.rerun()
 
-
-# Main chat area
-
+# -------------------- MAIN CHAT AREA --------------------
 if st.session_state.current_chat_id is None:
     st.markdown("# What can I help with?")
 else:
-    # Render stored messages for the current chat
     for message in st.session_state.messages:
         role = message.get("role", "assistant")
-        if role not in ("user", "assistant"):
-            role = "assistant" if role == "system" else role
+        if role not in ("user", "assistant"): role = "assistant" if role=="system" else role
         render_message(role, message["content"])
 
-    # -------------------- OCR File Upload --------------------
-    uploaded_file = st.file_uploader("Upload an image or PDF", type=["png","jpg","jpeg","pdf"])
-    if uploaded_file:
-        if uploaded_file.type == "application/pdf":
-            extracted_text = ocr_from_pdf(uploaded_file)
-        else:
-            extracted_text = ocr_from_image(uploaded_file)
-        
-        if extracted_text:
-            # Treat extracted text as user message
-            st.session_state.messages.append({"role": "user", "content": extracted_text})
-            render_message("user", extracted_text)
+    # -------------------- CHAT INPUT (NEW STYLE) --------------------
+    user_input = st.chat_input(
+        "Message ChatBot or attach a file",
+        accept_file=True,
+        file_type=["png","jpg","jpeg","pdf"]
+    )
 
-            # Get assistant reply
-            with st.spinner("ai assistant is thinking..."):
-                reply = get_ollama_reply(st.session_state.messages, model="phi3")
-            
-            st.session_state.messages.append({"role": "assistant", "content": reply})
-            render_message("assistant", reply)
+    if user_input:
+        # Handle text
+        if user_input.text:
+            st.session_state.messages.append({"role": "user", "content": user_input.text})
+            render_message("user", user_input.text)
 
-            # Save to chat history
-            current_chat_id = st.session_state.current_chat_id
-            if current_chat_id:
-                st.session_state.chat_history[current_chat_id]["messages"] = st.session_state.messages
-                if st.session_state.chat_history[current_chat_id]["title"] == "New Chat":
-                    update_chat_title(current_chat_id, st.session_state.messages)
+        # Handle uploaded files
+        if user_input["files"]:
+            for f in user_input["files"]:
+                if f.type == "application/pdf":
+                    text = ocr_from_pdf(f)
+                else:
+                    text = ocr_from_image(f)
+                st.session_state.messages.append({"role": "user", "content": text})
+                render_message("user", text)
 
-    # -------------------- Chat Input --------------------
-    if prompt := st.chat_input("Message ChatBot"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        render_message("user", prompt)
-
+        # Get assistant reply
         with st.spinner("ai assistant is thinking..."):
             reply = get_ollama_reply(st.session_state.messages, model="phi3")
-
         st.session_state.messages.append({"role": "assistant", "content": reply})
         render_message("assistant", reply)
 
+        # Save to chat history
         current_chat_id = st.session_state.current_chat_id
         if current_chat_id:
             st.session_state.chat_history[current_chat_id]["messages"] = st.session_state.messages
