@@ -1,11 +1,3 @@
-Absolutely, Abhishek 🚀
-
-Here’s a **beautifully formatted README.md** — ready for you to **copy-paste directly** into VS Code.
-It includes emojis, styling, and clear sectioning to make it **look professional and attractive on GitHub**.
-
----
-
-````markdown
 # 🤖 Streamlit ChatBot with Ollama & OCR
 
 An advanced **AI-powered chatbot** built using **Streamlit** that integrates **Ollama models (like phi3, llama2, mistral)** for natural, context-aware conversations.  
@@ -120,8 +112,7 @@ Chatbot-infosys-springboard/
 │
 ├── app.py                # Main Streamlit application
 ├── README.md             # Project documentation
-├── requirements.txt      # List of dependencies
-└── assets/               # (Optional) Images, icons, or other assets
+└── requirements.txt      # List of dependencies
 ```
 
 ---
@@ -153,7 +144,3 @@ This project is licensed under the **MIT License** — free to use and modify.
 ---
 
 ⭐ *If you like this project, give it a star on GitHub to support future improvements!* ⭐
-
-```
-
----
